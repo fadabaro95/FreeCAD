@@ -63,12 +63,14 @@
 #include "ViewProviderSketchBased.h"
 #include "ViewProviderThickness.h"
 #include "ViewProviderTransformed.h"
+#include "ViewProviderVoronoi.h"
 
 
 // use a different name to CreateCommand()
 void CreatePartDesignCommands();
 void CreatePartDesignBodyCommands();
 void CreatePartDesignPrimitiveCommands();
+void CreatePartDesignVoronoiCommands();
 
 void loadPartDesignResource()
 {
@@ -124,6 +126,7 @@ PyMOD_INIT_FUNC(PartDesignGui)
     CreatePartDesignCommands();
     CreatePartDesignBodyCommands();
     CreatePartDesignPrimitiveCommands();
+    CreatePartDesignVoronoiCommands();
 
     // clang-format off
     PartDesignGui::Workbench                 ::init();
@@ -159,6 +162,7 @@ PyMOD_INIT_FUNC(PartDesignGui)
     PartDesignGui::ViewProviderSubShapeBinderPython::init();
     PartDesignGui::ViewProviderBoolean       ::init();
     PartDesignGui::ViewProviderPrimitive     ::init();
+    PartDesignGui::ViewProviderVoronoi       ::init();
     PartDesignGui::ViewProviderPipe          ::init();
     PartDesignGui::ViewProviderLoft          ::init();
     PartDesignGui::ViewProviderHelix         ::init();

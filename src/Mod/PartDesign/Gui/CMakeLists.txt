@@ -53,6 +53,7 @@ set(PartDesignGui_UIC_SRCS
     DlgReference.ui
     DlgActiveBody.ui
     TaskHelixParameters.ui
+    TaskVoronoiParameters.ui
 )
 
 SET(PartDesignGuiViewProvider_SRCS
@@ -122,6 +123,8 @@ SET(PartDesignGuiViewProvider_SRCS
     ViewProviderHelix.cpp
     ViewProviderBase.h
     ViewProviderBase.cpp
+    ViewProviderVoronoi.h
+    ViewProviderVoronoi.cpp
 )
 SOURCE_GROUP("ViewProvider" FILES ${PartDesignGuiViewProvider_SRCS})
 
@@ -207,6 +210,9 @@ SET(PartDesignGuiTaskDlgs_SRCS
     TaskHelixParameters.cpp
     DlgActiveBody.h
     DlgActiveBody.cpp
+    TaskVoronoiParameters.ui
+    TaskVoronoiParameters.h
+    TaskVoronoiParameters.cpp
 )
 SOURCE_GROUP("TaskDialogs" FILES ${PartDesignGuiTaskDlgs_SRCS})
 
@@ -215,6 +221,7 @@ SET(PartDesignGuiModule_SRCS
     Command.cpp
     CommandPrimitive.cpp
     CommandBody.cpp
+    CommandVoronoi.cpp
     EnumFlags.h
     Resources/PartDesign.qrc
     PreCompiled.h

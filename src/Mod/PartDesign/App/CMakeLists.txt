@@ -111,6 +111,10 @@ SET(FeaturesSketchBased_SRCS
     FeatureLoft.cpp
     FeatureHelix.h
     FeatureHelix.cpp
+    FeatureVoronoi.h
+    FeatureVoronoi.cpp
+    VoronoiAlgorithm.h
+    VoronoiAlgorithm.cpp
 )
 
 SOURCE_GROUP("SketchBasedFeatures" FILES ${FeaturesSketchBased_SRCS})

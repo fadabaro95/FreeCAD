@@ -27,6 +27,7 @@
 #include <Gui/Document.h>
 #include <Mod/PartDesign/App/Body.h>
 #include <Mod/PartDesign/App/FeatureVoronoi.h>
+#include <Mod/PartDesign/App/VoronoiSketch.h>
 #include <Mod/PartDesign/App/VoronoiAlgorithm.h>
 #include <Mod/Sketcher/App/SketchObject.h>
 #include <Mod/Part/App/Geometry.h>
@@ -176,15 +177,21 @@ void TaskBoxVoronoi::onCreateSketchClicked()
     doc->openTransaction("Create Voronoi Sketch");
 
     std::string featName = doc->getUniqueObjectName("VoronoiSketch");
-    FCMD_OBJ_CMD(pcActiveBody, "newObject('Sketcher::SketchObject','" << featName << "')");
+    FCMD_OBJ_CMD(pcActiveBody, "newObject('PartDesign::VoronoiSketch','" << featName << "')");
 
-    auto* sketchObj = static_cast<Sketcher::SketchObject*>(doc->getObject(featName.c_str()));
+    auto* sketchObj = static_cast<PartDesign::VoronoiSketch*>(doc->getObject(featName.c_str()));
     if (!sketchObj) {
         doc->abortTransaction();
         return;
     }
 
     FCMD_OBJ_CMD(sketchObj, "Label = 'VoronoiSketch'");
+    FCMD_OBJ_CMD(sketchObj, "NumberOfSeeds = " << params.numPoints);
+    FCMD_OBJ_CMD(sketchObj, "WallThickness = " << params.wallThickness);
+    FCMD_OBJ_CMD(sketchObj, "FilletRadius = " << params.filletRadius);
+    FCMD_OBJ_CMD(sketchObj, "Width = " << params.width);
+    FCMD_OBJ_CMD(sketchObj, "Height = " << params.height);
+    FCMD_OBJ_CMD(sketchObj, "SeedRandom = " << params.randomSeed);
 
     // Match attachment of the Voronoi feature or Origin XY
     if (obj) {
@@ -200,37 +207,6 @@ void TaskBoxVoronoi::onCreateSketchClicked()
                 FCMD_OBJ_CMD(sketchObj, "MapMode = 'FlatFace'");
             }
         }
-    }
-
-    // Generate Voronoi cell geometry
-    std::vector<std::vector<gp_Pnt2d>> cells = PartDesign::VoronoiAlgorithm::generateCellPolygons(params);
-
-    std::vector<Part::Geometry*> geomList;
-    geomList.reserve(cells.size() * 6);
-
-    for (const auto& cell : cells) {
-        size_t n = cell.size();
-        for (size_t i = 0; i < n; ++i) {
-            size_t next = (i + 1) % n;
-            gp_Pnt2d p1 = cell[i];
-            gp_Pnt2d p2 = cell[next];
-            if (p1.Distance(p2) > 1e-4) {
-                auto* line = new Part::GeomLineSegment();
-                line->setPoints(
-                    Base::Vector3d(p1.X(), p1.Y(), 0.0),
-                    Base::Vector3d(p2.X(), p2.Y(), 0.0)
-                );
-                geomList.push_back(line);
-            }
-        }
-    }
-
-    if (!geomList.empty()) {
-        sketchObj->addGeometry(geomList, false);
-        for (auto* g : geomList) {
-            delete g;
-        }
-        geomList.clear();
     }
 
     sketchObj->recomputeFeature();

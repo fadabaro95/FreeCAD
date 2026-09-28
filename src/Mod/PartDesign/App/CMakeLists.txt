@@ -12,6 +12,7 @@ generate_from_py(Feature)
 set(PartDesign_LIBS
     ${OCC_LIBRARIES}
     ${OCC_DEBUG_LIBRARIES}
+    Sketcher
     Part
     FreeCADApp
 )
@@ -115,6 +116,8 @@ SET(FeaturesSketchBased_SRCS
     FeatureVoronoi.cpp
     VoronoiAlgorithm.h
     VoronoiAlgorithm.cpp
+    VoronoiSketch.h
+    VoronoiSketch.cpp
 )
 
 SOURCE_GROUP("SketchBasedFeatures" FILES ${FeaturesSketchBased_SRCS})

@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <boost/polygon/voronoi.hpp>
+#include <boost/geometry.hpp>
 
 #include <gp_Pnt.hxx>
 #include <gp_Vec.hxx>
@@ -49,6 +50,83 @@ std::vector<gp_Pnt2d> VoronoiAlgorithm::generateSeeds(const VoronoiParams& param
 
     std::mt19937 rng(params.randomSeed);
     std::uniform_real_distribution<double> jitterDist(-0.35, 0.35);
+
+    if (params.boundaryPolygon.size() >= 3) {
+        double minX = std::numeric_limits<double>::max();
+        double maxX = -std::numeric_limits<double>::max();
+        double minY = std::numeric_limits<double>::max();
+        double maxY = -std::numeric_limits<double>::max();
+        for (const auto& pt : params.boundaryPolygon) {
+            minX = std::min(minX, pt.X());
+            maxX = std::max(maxX, pt.X());
+            minY = std::min(minY, pt.Y());
+            maxY = std::max(maxY, pt.Y());
+        }
+
+        double w = maxX - minX;
+        double h = maxY - minY;
+        if (w < 1e-4 || h < 1e-4) return points;
+
+        double signedArea = 0.0;
+        size_t numV = params.boundaryPolygon.size();
+        for (size_t i = 0; i < numV; ++i) {
+            size_t next = (i + 1) % numV;
+            signedArea += (params.boundaryPolygon[i].X() * params.boundaryPolygon[next].Y()
+                         - params.boundaryPolygon[next].X() * params.boundaryPolygon[i].Y());
+        }
+        double polyArea = std::abs(signedArea) * 0.5;
+        double boxArea = w * h;
+        double fillRatio = std::clamp(polyArea / std::max(1e-4, boxArea), 0.05, 1.0);
+        int totalBoxPoints = static_cast<int>(std::round(n / fillRatio));
+
+        double aspect = (h > 1e-4) ? (w / h) : 1.0;
+        int cols = static_cast<int>(std::round(std::sqrt(totalBoxPoints * aspect)));
+        if (cols < 1) cols = 1;
+        int rows = static_cast<int>(std::round(static_cast<double>(totalBoxPoints) / cols));
+        if (rows < 1) rows = 1;
+
+        double dx = w / cols;
+        double dy = h / rows;
+
+        auto pointInPoly = [](const gp_Pnt2d& p, const std::vector<gp_Pnt2d>& poly) {
+            int count = static_cast<int>(poly.size());
+            bool inside = false;
+            for (int i = 0, j = count - 1; i < count; j = i++) {
+                if (((poly[i].Y() > p.Y()) != (poly[j].Y() > p.Y())) &&
+                    (p.X() < (poly[j].X() - poly[i].X()) * (p.Y() - poly[i].Y()) / (poly[j].Y() - poly[i].Y()) + poly[i].X())) {
+                    inside = !inside;
+                }
+            }
+            return inside;
+        };
+
+        for (int i = 0; i < cols; ++i) {
+            for (int j = 0; j < rows; ++j) {
+                double jx = jitterDist(rng) * dx;
+                double jy = jitterDist(rng) * dy;
+                double x = minX + (i + 0.5) * dx + jx;
+                double y = minY + (j + 0.5) * dy + jy;
+                x = std::clamp(x, minX + 0.02 * dx, maxX - 0.02 * dx);
+                y = std::clamp(y, minY + 0.02 * dy, maxY - 0.02 * dy);
+                gp_Pnt2d candidate(x, y);
+                if (pointInPoly(candidate, params.boundaryPolygon)) {
+                    points.push_back(candidate);
+                }
+            }
+        }
+
+        std::uniform_real_distribution<double> randX(minX, maxX);
+        std::uniform_real_distribution<double> randY(minY, maxY);
+        int attempts = 0;
+        while (points.size() < static_cast<size_t>(std::min(3, n)) && attempts < 1000) {
+            gp_Pnt2d cand(randX(rng), randY(rng));
+            if (pointInPoly(cand, params.boundaryPolygon)) {
+                points.push_back(cand);
+            }
+            attempts++;
+        }
+        return points;
+    }
 
     double aspect = (params.height > 1e-4) ? (params.width / params.height) : 1.0;
     int cols = static_cast<int>(std::round(std::sqrt(n * aspect)));
@@ -143,6 +221,61 @@ std::vector<gp_Pnt2d> VoronoiAlgorithm::clipPolygonToRect(
         if (current.size() < 3) return {};
     }
     return current;
+}
+
+std::vector<std::vector<gp_Pnt2d>> VoronoiAlgorithm::clipPolygonToBoundary(
+    const std::vector<gp_Pnt2d>& subjectPoly,
+    const std::vector<gp_Pnt2d>& boundaryPoly)
+{
+    if (subjectPoly.size() < 3 || boundaryPoly.size() < 3) return {};
+
+    namespace bg = boost::geometry;
+    using BoostPoint = bg::model::d2::point_xy<double>;
+    using BoostPolygon = bg::model::polygon<BoostPoint>;
+    using BoostMultiPolygon = bg::model::multi_polygon<BoostPolygon>;
+
+    auto toBoost = [](const std::vector<gp_Pnt2d>& pts) {
+        BoostPolygon poly;
+        for (const auto& p : pts) {
+            bg::append(poly.outer(), BoostPoint(p.X(), p.Y()));
+        }
+        if (!pts.empty()) {
+            bg::append(poly.outer(), BoostPoint(pts.front().X(), pts.front().Y()));
+        }
+        bg::correct(poly);
+        return poly;
+    };
+
+    BoostPolygon subj = toBoost(subjectPoly);
+    BoostPolygon bound = toBoost(boundaryPoly);
+    BoostMultiPolygon output;
+
+    try {
+        bg::intersection(subj, bound, output);
+    }
+    catch (...) {
+        return {};
+    }
+
+    std::vector<std::vector<gp_Pnt2d>> result;
+    for (const auto& poly : output) {
+        if (bg::area(poly) < 1e-4) continue;
+        const auto& ring = poly.outer();
+        size_t count = ring.size();
+        if (count < 4) continue;
+        if (count > 1 && bg::distance(ring.front(), ring.back()) < 1e-7) {
+            count--;
+        }
+        std::vector<gp_Pnt2d> pts;
+        pts.reserve(count);
+        for (size_t i = 0; i < count; ++i) {
+            pts.emplace_back(ring[i].x(), ring[i].y());
+        }
+        if (pts.size() >= 3) {
+            result.push_back(pts);
+        }
+    }
+    return result;
 }
 
 std::vector<gp_Pnt2d> VoronoiAlgorithm::shrinkPolygon(
@@ -259,24 +392,44 @@ std::vector<std::vector<gp_Pnt2d>> VoronoiAlgorithm::generateCellPolygons(const 
     std::vector<gp_Pnt2d> internalSeeds = generateSeeds(params);
     if (internalSeeds.size() < 3) return cellPolygons;
 
+    double minX = 0.0, maxX = params.width;
+    double minY = 0.0, maxY = params.height;
+    bool hasCustomBoundary = (params.boundaryPolygon.size() >= 3);
+
+    if (hasCustomBoundary) {
+        minX = std::numeric_limits<double>::max();
+        maxX = -std::numeric_limits<double>::max();
+        minY = std::numeric_limits<double>::max();
+        maxY = -std::numeric_limits<double>::max();
+        for (const auto& pt : params.boundaryPolygon) {
+            minX = std::min(minX, pt.X());
+            maxX = std::max(maxX, pt.X());
+            minY = std::min(minY, pt.Y());
+            maxY = std::max(maxY, pt.Y());
+        }
+    }
+
+    double spanX = maxX - minX;
+    double spanY = maxY - minY;
+    double margin = std::max(spanX, spanY) * 0.25;
+
     // Añadir anillo exterior de semillas de guarda para acotar todas las celdas internas
     std::vector<gp_Pnt2d> allSeeds = internalSeeds;
-    double margin = std::max(params.width, params.height) * 0.2;
     int guardCount = 8;
     for (int g = 0; g <= guardCount; ++g) {
         double t = static_cast<double>(g) / guardCount;
-        allSeeds.emplace_back(-margin, t * params.height);
-        allSeeds.emplace_back(params.width + margin, t * params.height);
-        allSeeds.emplace_back(t * params.width, -margin);
-        allSeeds.emplace_back(t * params.width, params.height + margin);
+        allSeeds.emplace_back(minX - margin, minY + t * spanY);
+        allSeeds.emplace_back(maxX + margin, minY + t * spanY);
+        allSeeds.emplace_back(minX + t * spanX, minY - margin);
+        allSeeds.emplace_back(minX + t * spanX, maxY + margin);
     }
 
     std::vector<point_data<int32_t>> boostPoints;
     boostPoints.reserve(allSeeds.size());
     for (const auto& pt : allSeeds) {
         boostPoints.emplace_back(
-            static_cast<int32_t>(pt.X() * CoordinateScale),
-            static_cast<int32_t>(pt.Y() * CoordinateScale)
+            static_cast<int32_t>(std::round(pt.X() * CoordinateScale)),
+            static_cast<int32_t>(std::round(pt.Y() * CoordinateScale))
         );
     }
 
@@ -310,15 +463,30 @@ std::vector<std::vector<gp_Pnt2d>> VoronoiAlgorithm::generateCellPolygons(const 
 
         if (!valid || cellPoly.size() < 3) continue;
 
-        // Recortar al rectángulo límite
-        std::vector<gp_Pnt2d> clipped = clipPolygonToRect(cellPoly, 0.0, 0.0, params.width, params.height);
-        if (clipped.size() < 3) continue;
+        if (hasCustomBoundary) {
+            // Contraer primero la celda convexa de Voronoi
+            std::vector<gp_Pnt2d> shrunk = shrinkPolygon(cellPoly, halfWall);
+            if (shrunk.size() < 3) continue;
 
-        // Contraer hacia adentro para dejar el espesor de pared (ribs)
-        std::vector<gp_Pnt2d> shrunk = shrinkPolygon(clipped, halfWall);
-        if (shrunk.size() < 3) continue;
+            // Recortar la celda contraída contra el polígono límite
+            std::vector<std::vector<gp_Pnt2d>> pieces = clipPolygonToBoundary(shrunk, params.boundaryPolygon);
+            for (const auto& piece : pieces) {
+                if (piece.size() >= 3) {
+                    cellPolygons.push_back(piece);
+                }
+            }
+        }
+        else {
+            // Recortar al rectángulo límite
+            std::vector<gp_Pnt2d> clipped = clipPolygonToRect(cellPoly, 0.0, 0.0, params.width, params.height);
+            if (clipped.size() < 3) continue;
 
-        cellPolygons.push_back(shrunk);
+            // Contraer hacia adentro para dejar el espesor de pared (ribs)
+            std::vector<gp_Pnt2d> shrunk = shrinkPolygon(clipped, halfWall);
+            if (shrunk.size() < 3) continue;
+
+            cellPolygons.push_back(shrunk);
+        }
     }
 
     return cellPolygons;

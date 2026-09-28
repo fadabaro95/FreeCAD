@@ -38,6 +38,7 @@ struct VoronoiParams
     double width {100.0};           ///< Bounding rectangle width in mm
     double height {100.0};          ///< Bounding rectangle height in mm
     bool closeContour {true};       ///< True = include outer bounding box contour; False = only cell polygons
+    std::vector<gp_Pnt2d> boundaryPolygon; ///< Optional custom closed 2D polygon contour boundary
 };
 
 /**
@@ -79,6 +80,14 @@ public:
     static std::vector<gp_Pnt2d> clipPolygonToRect(
         const std::vector<gp_Pnt2d>& polygon,
         double xMin, double yMin, double xMax, double yMax
+    );
+
+    /**
+     * @brief Clips a 2D polygon against an arbitrary (convex or concave) boundary polygon using Boost.Geometry.
+     */
+    static std::vector<std::vector<gp_Pnt2d>> clipPolygonToBoundary(
+        const std::vector<gp_Pnt2d>& subjectPoly,
+        const std::vector<gp_Pnt2d>& boundaryPoly
     );
 
     /**

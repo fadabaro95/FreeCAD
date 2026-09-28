@@ -26,6 +26,7 @@
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QCheckBox>
+#include <QComboBox>
 #include <random>
 #include <algorithm>
 
@@ -43,6 +44,7 @@
 #include <Mod/PartDesign/App/VoronoiAlgorithm.h>
 #include <Mod/Sketcher/App/SketchObject.h>
 #include <Mod/Part/App/Geometry.h>
+#include <Mod/Part/App/Part2DObject.h>
 
 #include <BRepBndLib.hxx>
 #include <Bnd_Box.hxx>
@@ -63,10 +65,14 @@ public:
         : QDialog(parent)
     {
         setWindowTitle(tr("Voronoi Sketch Parameters"));
-        setMinimumWidth(320);
+        setMinimumWidth(340);
 
         auto* mainLayout = new QVBoxLayout(this);
         auto* form = new QFormLayout();
+
+        comboBoundarySketch = new QComboBox(this);
+        comboBoundarySketch->addItem(tr("(None - Use Width/Height)"), QString());
+        form->addRow(tr("Boundary sketch:"), comboBoundarySketch);
 
         spinSeeds = new QSpinBox(this);
         spinSeeds->setRange(3, 1000);
@@ -128,6 +134,30 @@ public:
             std::uniform_int_distribution<int> dis(1, 999999);
             spinRandomSeed->setValue(dis(gen));
         });
+
+        connect(comboBoundarySketch, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int idx) {
+            bool hasSketch = (idx > 0);
+            spinWidth->setEnabled(!hasSketch);
+            spinHeight->setEnabled(!hasSketch);
+        });
+    }
+
+    void setBoundarySketches(const std::vector<Part::Feature*>& sketches, const std::string& preselectedName = "")
+    {
+        for (const auto* sk : sketches) {
+            if (!sk) continue;
+            QString label = QString::fromStdString(sk->Label.getValue());
+            QString name = QString::fromStdString(sk->getNameInDocument());
+            comboBoundarySketch->addItem(QStringLiteral("%1 (%2)").arg(label, name), name);
+            if (!preselectedName.empty() && sk->getNameInDocument() == preselectedName) {
+                comboBoundarySketch->setCurrentIndex(comboBoundarySketch->count() - 1);
+            }
+        }
+    }
+
+    std::string getSelectedBoundarySketch() const
+    {
+        return comboBoundarySketch->currentData().toString().toStdString();
     }
 
     void setDimensions(double w, double h)
@@ -150,6 +180,7 @@ public:
     }
 
 private:
+    QComboBox* comboBoundarySketch {nullptr};
     QSpinBox* spinSeeds {nullptr};
     QDoubleSpinBox* spinWallThickness {nullptr};
     QDoubleSpinBox* spinFilletRadius {nullptr};
@@ -184,6 +215,23 @@ void CmdPartDesignVoronoiSketch::activated(int /*iMsg*/)
     std::string supportStr;
     double initW = 100.0;
     double initH = 100.0;
+    std::string preselectedSketch;
+
+    // Detect if a 2D sketch or feature is selected
+    for (const auto& selObj : sel) {
+        if (selObj.getObject() && selObj.getObject()->isDerivedFrom<Part::Part2DObject>()) {
+            preselectedSketch = selObj.getObject()->getNameInDocument();
+            break;
+        }
+    }
+
+    // Collect candidate boundary sketches from active body
+    std::vector<Part::Feature*> availableSketches;
+    for (auto* obj : pcActiveBody->Group.getValues()) {
+        if (obj && obj->isDerivedFrom<Part::Part2DObject>()) {
+            availableSketches.push_back(static_cast<Part::Feature*>(obj));
+        }
+    }
 
     for (const auto& selObj : sel) {
         if (selObj.getObject() && selObj.hasSubNames()) {
@@ -214,6 +262,7 @@ void CmdPartDesignVoronoiSketch::activated(int /*iMsg*/)
     }
 
     DlgVoronoiSketch dlg(Gui::getMainWindow());
+    dlg.setBoundarySketches(availableSketches, preselectedSketch);
     dlg.setDimensions(initW, initH);
     if (dlg.exec() != QDialog::Accepted) {
         return;
@@ -242,16 +291,35 @@ void CmdPartDesignVoronoiSketch::activated(int /*iMsg*/)
     FCMD_OBJ_CMD(sketchObj, "SeedRandom = " << params.randomSeed);
     FCMD_OBJ_CMD(sketchObj, "CloseContour = " << (params.closeContour ? "True" : "False"));
 
-    // Attachment
-    if (!supportStr.empty()) {
-        FCMD_OBJ_CMD(sketchObj, "AttachmentSupport = " << supportStr);
-        FCMD_OBJ_CMD(sketchObj, "MapMode = 'FlatFace'");
+    std::string boundarySketchName = dlg.getSelectedBoundarySketch();
+    if (!boundarySketchName.empty()) {
+        auto* bObj = doc->getObject(boundarySketchName.c_str());
+        if (bObj) {
+            FCMD_OBJ_CMD(sketchObj, "BoundarySketch = " << Gui::Command::getObjectCmd(bObj));
+            auto* part2d = freecad_cast<Part::Part2DObject*>(bObj);
+            if (part2d && !part2d->AttachmentSupport.getValues().empty()) {
+                FCMD_OBJ_CMD(sketchObj, "AttachmentSupport = " << Gui::Command::getObjectCmd(part2d) << ".AttachmentSupport");
+                FCMD_OBJ_CMD(sketchObj, "MapMode = " << Gui::Command::getObjectCmd(part2d) << ".MapMode");
+                FCMD_OBJ_CMD(sketchObj, "MapReversed = " << Gui::Command::getObjectCmd(part2d) << ".MapReversed");
+                FCMD_OBJ_CMD(sketchObj, "AttachmentOffset = " << Gui::Command::getObjectCmd(part2d) << ".AttachmentOffset");
+            }
+            else {
+                FCMD_OBJ_CMD(sketchObj, "Placement = " << Gui::Command::getObjectCmd(bObj) << ".Placement");
+            }
+        }
     }
     else {
-        auto origin = pcActiveBody->getOrigin();
-        if (origin && origin->getXY()) {
-            FCMD_OBJ_CMD(sketchObj, "AttachmentSupport = [(" << Gui::Command::getObjectCmd(origin->getXY()) << ", '')]");
+        // Attachment
+        if (!supportStr.empty()) {
+            FCMD_OBJ_CMD(sketchObj, "AttachmentSupport = " << supportStr);
             FCMD_OBJ_CMD(sketchObj, "MapMode = 'FlatFace'");
+        }
+        else {
+            auto origin = pcActiveBody->getOrigin();
+            if (origin && origin->getXY()) {
+                FCMD_OBJ_CMD(sketchObj, "AttachmentSupport = [(" << Gui::Command::getObjectCmd(origin->getXY()) << ", '')]");
+                FCMD_OBJ_CMD(sketchObj, "MapMode = 'FlatFace'");
+            }
         }
     }
 

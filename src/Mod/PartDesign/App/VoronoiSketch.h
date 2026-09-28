@@ -20,6 +20,7 @@
 #include <Mod/Sketcher/App/SketchObject.h>
 #include <App/PropertyStandard.h>
 #include <App/PropertyUnits.h>
+#include <App/PropertyLinks.h>
 #include <Mod/PartDesign/PartDesignGlobal.h>
 
 namespace PartDesign
@@ -31,7 +32,7 @@ namespace PartDesign
  * Inherits from Sketcher::SketchObject so that it can be used directly as profile
  * by PartDesign Pad, Pocket, etc. Regenerates its cell geometry whenever any
  * Voronoi parameter (NumberOfSeeds, WallThickness, FilletRadius, Width, Height,
- * SeedRandom) is modified.
+ * SeedRandom, BoundarySketch) is modified.
  */
 class PartDesignExport VoronoiSketch : public Sketcher::SketchObject
 {
@@ -48,6 +49,7 @@ public:
     App::PropertyLength  Height;
     App::PropertyInteger SeedRandom;
     App::PropertyBool    CloseContour;
+    App::PropertyLink    BoundarySketch;
 
     short mustExecute() const override;
     App::DocumentObjectExecReturn* execute() override;

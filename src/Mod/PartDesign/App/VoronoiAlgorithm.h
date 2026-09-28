@@ -39,6 +39,7 @@ struct VoronoiParams
     double width {100.0};           ///< Bounding rectangle width in mm
     double height {100.0};          ///< Bounding rectangle height in mm
     bool isAdditive {true};         ///< True = solid ribs (Additive); False = hole prisms (Subtractive)
+    bool closeContour {true};       ///< True = include outer bounding box contour; False = only cell polygons
 };
 
 /**

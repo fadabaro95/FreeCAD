@@ -25,6 +25,7 @@
 #include <QPushButton>
 #include <QDialogButtonBox>
 #include <QLabel>
+#include <QCheckBox>
 #include <random>
 #include <algorithm>
 
@@ -111,6 +112,10 @@ public:
         seedLayout->addWidget(btnRandom);
         form->addRow(tr("Random seed:"), seedLayout);
 
+        checkCloseContour = new QCheckBox(tr("Close outer contour"), this);
+        checkCloseContour->setChecked(true);
+        form->addRow(QString(), checkCloseContour);
+
         mainLayout->addLayout(form);
 
         auto* btnBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -141,6 +146,7 @@ public:
         params.width = spinWidth->value();
         params.height = spinHeight->value();
         params.randomSeed = spinRandomSeed->value();
+        params.closeContour = checkCloseContour->isChecked();
         return params;
     }
 
@@ -151,6 +157,7 @@ private:
     QDoubleSpinBox* spinWidth {nullptr};
     QDoubleSpinBox* spinHeight {nullptr};
     QSpinBox* spinRandomSeed {nullptr};
+    QCheckBox* checkCloseContour {nullptr};
 };
 
 } // namespace
@@ -318,6 +325,7 @@ void CmdPartDesignVoronoiSketch::activated(int /*iMsg*/)
     FCMD_OBJ_CMD(sketchObj, "Width = " << params.width);
     FCMD_OBJ_CMD(sketchObj, "Height = " << params.height);
     FCMD_OBJ_CMD(sketchObj, "SeedRandom = " << params.randomSeed);
+    FCMD_OBJ_CMD(sketchObj, "CloseContour = " << (params.closeContour ? "True" : "False"));
 
     // Attachment
     if (!supportStr.empty()) {

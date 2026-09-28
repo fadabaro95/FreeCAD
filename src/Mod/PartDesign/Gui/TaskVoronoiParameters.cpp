@@ -172,6 +172,7 @@ void TaskBoxVoronoi::onCreateSketchClicked()
     params.width = ui->spinWidth->value().getValue();
     params.height = ui->spinHeight->value().getValue();
     params.randomSeed = ui->spinRandomSeed->value();
+    params.closeContour = ui->checkCloseContour->isChecked();
 
     App::Document* doc = pcActiveBody->getDocument();
     doc->openTransaction("Create Voronoi Sketch");
@@ -192,6 +193,7 @@ void TaskBoxVoronoi::onCreateSketchClicked()
     FCMD_OBJ_CMD(sketchObj, "Width = " << params.width);
     FCMD_OBJ_CMD(sketchObj, "Height = " << params.height);
     FCMD_OBJ_CMD(sketchObj, "SeedRandom = " << params.randomSeed);
+    FCMD_OBJ_CMD(sketchObj, "CloseContour = " << (params.closeContour ? "True" : "False"));
 
     // Match attachment of the Voronoi feature or Origin XY
     if (obj) {

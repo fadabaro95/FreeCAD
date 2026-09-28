@@ -38,6 +38,7 @@ VoronoiSketch::VoronoiSketch()
     ADD_PROPERTY_TYPE(Width, (100.0f), "Voronoi", App::Prop_None, "Width of the bounding domain");
     ADD_PROPERTY_TYPE(Height, (100.0f), "Voronoi", App::Prop_None, "Height of the bounding domain");
     ADD_PROPERTY_TYPE(SeedRandom, (1234), "Voronoi", App::Prop_None, "Random seed for reproduction");
+    ADD_PROPERTY_TYPE(CloseContour, (true), "Voronoi", App::Prop_None, "Close outer boundary contour of the sketch");
 
     WallThickness.setConstraints(&quantityRangePositive);
     Width.setConstraints(&quantityRangePositive);
@@ -52,7 +53,8 @@ void VoronoiSketch::onChanged(const App::Property* prop)
 short VoronoiSketch::mustExecute() const
 {
     if (NumberOfSeeds.isTouched() || WallThickness.isTouched() || FilletRadius.isTouched()
-        || Width.isTouched() || Height.isTouched() || SeedRandom.isTouched()) {
+        || Width.isTouched() || Height.isTouched() || SeedRandom.isTouched()
+        || CloseContour.isTouched()) {
         return 1;
     }
     return SketchObject::mustExecute();
@@ -87,11 +89,30 @@ App::DocumentObjectExecReturn* VoronoiSketch::execute()
         params.width = w;
         params.height = h;
         params.randomSeed = seedRng;
+        params.closeContour = CloseContour.getValue();
 
         std::vector<std::vector<gp_Pnt2d>> cells = VoronoiAlgorithm::generateCellPolygons(params);
 
         std::vector<Part::Geometry*> newGeom;
-        newGeom.reserve(cells.size() * 6);
+        newGeom.reserve(cells.size() * 6 + 4);
+
+        if (CloseContour.getValue()) {
+            gp_Pnt2d corners[4] = {
+                gp_Pnt2d(0.0, 0.0),
+                gp_Pnt2d(w, 0.0),
+                gp_Pnt2d(w, h),
+                gp_Pnt2d(0.0, h)
+            };
+            for (int i = 0; i < 4; ++i) {
+                int next = (i + 1) % 4;
+                auto* line = new Part::GeomLineSegment();
+                line->setPoints(
+                    Base::Vector3d(corners[i].X(), corners[i].Y(), 0.0),
+                    Base::Vector3d(corners[next].X(), corners[next].Y(), 0.0)
+                );
+                newGeom.push_back(line);
+            }
+        }
 
         for (const auto& cell : cells) {
             size_t n = cell.size();

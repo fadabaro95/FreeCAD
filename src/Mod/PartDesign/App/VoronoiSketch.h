@@ -47,6 +47,7 @@ public:
     App::PropertyLength  Width;
     App::PropertyLength  Height;
     App::PropertyInteger SeedRandom;
+    App::PropertyBool    CloseContour;
 
     short mustExecute() const override;
     App::DocumentObjectExecReturn* execute() override;

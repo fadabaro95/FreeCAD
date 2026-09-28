@@ -415,8 +415,7 @@ Gui::MenuItem* Workbench::setupMenuBar() const
                << "PartDesign_Revolution"
                << "PartDesign_AdditiveLoft"
                << "PartDesign_AdditivePipe"
-               << "PartDesign_AdditiveHelix"
-               << "PartDesign_AdditiveVoronoi";
+               << "PartDesign_AdditiveHelix";
 
     // subtractives
     Gui::MenuItem* subtractives = new Gui::MenuItem;
@@ -427,8 +426,7 @@ Gui::MenuItem* Workbench::setupMenuBar() const
                   << "PartDesign_Groove"
                   << "PartDesign_SubtractiveLoft"
                   << "PartDesign_SubtractivePipe"
-                  << "PartDesign_SubtractiveHelix"
-                  << "PartDesign_SubtractiveVoronoi";
+                  << "PartDesign_SubtractiveHelix";
 
     // transformations
     Gui::MenuItem* transformations = new Gui::MenuItem;
@@ -543,9 +541,7 @@ Gui::ToolBarItem* Workbench::setupToolBars() const
 
     part = new Gui::ToolBarItem(root);
     part->setCommand("Part Design Generative Features");
-    *part << "PartDesign_AdditiveVoronoi"
-          << "PartDesign_SubtractiveVoronoi"
-          << "PartDesign_VoronoiSketch";
+    *part << "PartDesign_VoronoiSketch";
 
     return root;
 }

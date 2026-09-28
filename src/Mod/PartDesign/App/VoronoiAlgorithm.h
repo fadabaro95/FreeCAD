@@ -34,11 +34,9 @@ struct VoronoiParams
     int numPoints {60};             ///< Approximate number of internal seed points
     double wallThickness {2.0};     ///< Rib / wall thickness between cells in mm
     double filletRadius {1.0};      ///< Corner fillet radius in mm
-    double depth {5.0};             ///< Extrusion depth / height in mm
     int randomSeed {1234};          ///< RNG seed for deterministic reproduction
     double width {100.0};           ///< Bounding rectangle width in mm
     double height {100.0};          ///< Bounding rectangle height in mm
-    bool isAdditive {true};         ///< True = solid ribs (Additive); False = hole prisms (Subtractive)
     bool closeContour {true};       ///< True = include outer bounding box contour; False = only cell polygons
 };
 

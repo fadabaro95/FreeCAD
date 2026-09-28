@@ -39,7 +39,6 @@
 #include <App/Origin.h>
 
 #include <Mod/PartDesign/App/Body.h>
-#include <Mod/PartDesign/App/FeatureVoronoi.h>
 #include <Mod/PartDesign/App/VoronoiSketch.h>
 #include <Mod/PartDesign/App/VoronoiAlgorithm.h>
 #include <Mod/Sketcher/App/SketchObject.h>
@@ -162,90 +161,6 @@ private:
 
 } // namespace
 
-DEF_STD_CMD_A(CmdPartDesignAdditiveVoronoi)
-
-CmdPartDesignAdditiveVoronoi::CmdPartDesignAdditiveVoronoi()
-    : Command("PartDesign_AdditiveVoronoi")
-{
-    sGroup        = "PartDesign";
-    sMenuText     = QT_TR_NOOP("Additive Voronoi...");
-    sToolTipText  = QT_TR_NOOP("Create an additive Voronoi pattern attached to a face");
-    sWhatsThis    = "PartDesign_AdditiveVoronoi";
-    sStatusTip    = QT_TR_NOOP("Create an additive Voronoi pattern attached to a face");
-    sPixmap       = "PartDesign_CompPrimitiveAdditive";
-}
-
-void CmdPartDesignAdditiveVoronoi::activated(int /*iMsg*/)
-{
-    PartDesign::Body* pcActiveBody = PartDesignGui::getBody(true);
-    if (!pcActiveBody) return;
-
-    openCommand("Create Additive Voronoi");
-
-    auto featName = getUniqueObjectName("AdditiveVoronoi", pcActiveBody);
-    FCMD_OBJ_DOC_CMD(pcActiveBody, "addObject('PartDesign::AdditiveVoronoi','" << featName << "')");
-
-    auto* prm = static_cast<PartDesign::FeatureVoronoi*>(
-        pcActiveBody->getDocument()->getObject(featName.c_str())
-    );
-    if (!prm) return;
-
-    FCMD_OBJ_CMD(pcActiveBody, "addObject(" << getObjectCmd(prm) << ")");
-    Gui::Command::updateActive();
-
-    auto base = prm->BaseFeature.getValue();
-    FCMD_OBJ_HIDE(base);
-
-    PartDesignGui::setEdit(prm, pcActiveBody);
-}
-
-bool CmdPartDesignAdditiveVoronoi::isActive()
-{
-    return (hasActiveDocument() && !Gui::Control().activeDialog());
-}
-
-DEF_STD_CMD_A(CmdPartDesignSubtractiveVoronoi)
-
-CmdPartDesignSubtractiveVoronoi::CmdPartDesignSubtractiveVoronoi()
-    : Command("PartDesign_SubtractiveVoronoi")
-{
-    sGroup        = "PartDesign";
-    sMenuText     = QT_TR_NOOP("Subtractive Voronoi...");
-    sToolTipText  = QT_TR_NOOP("Create a subtractive Voronoi pattern attached to a face");
-    sWhatsThis    = "PartDesign_SubtractiveVoronoi";
-    sStatusTip    = QT_TR_NOOP("Create a subtractive Voronoi pattern attached to a face");
-    sPixmap       = "PartDesign_CompPrimitiveSubtractive";
-}
-
-void CmdPartDesignSubtractiveVoronoi::activated(int /*iMsg*/)
-{
-    PartDesign::Body* pcActiveBody = PartDesignGui::getBody(true);
-    if (!pcActiveBody) return;
-
-    openCommand("Create Subtractive Voronoi");
-
-    auto featName = getUniqueObjectName("SubtractiveVoronoi", pcActiveBody);
-    FCMD_OBJ_DOC_CMD(pcActiveBody, "addObject('PartDesign::SubtractiveVoronoi','" << featName << "')");
-
-    auto* prm = static_cast<PartDesign::FeatureVoronoi*>(
-        pcActiveBody->getDocument()->getObject(featName.c_str())
-    );
-    if (!prm) return;
-
-    FCMD_OBJ_CMD(pcActiveBody, "addObject(" << getObjectCmd(prm) << ")");
-    Gui::Command::updateActive();
-
-    auto base = prm->BaseFeature.getValue();
-    FCMD_OBJ_HIDE(base);
-
-    PartDesignGui::setEdit(prm, pcActiveBody);
-}
-
-bool CmdPartDesignSubtractiveVoronoi::isActive()
-{
-    return (hasActiveDocument() && !Gui::Control().activeDialog());
-}
-
 DEF_STD_CMD_A(CmdPartDesignVoronoiSketch)
 
 CmdPartDesignVoronoiSketch::CmdPartDesignVoronoiSketch()
@@ -353,7 +268,5 @@ bool CmdPartDesignVoronoiSketch::isActive()
 void CreatePartDesignVoronoiCommands()
 {
     Gui::CommandManager& rcCmdMgr = Gui::Application::Instance->commandManager();
-    rcCmdMgr.addCommand(new CmdPartDesignAdditiveVoronoi);
-    rcCmdMgr.addCommand(new CmdPartDesignSubtractiveVoronoi);
     rcCmdMgr.addCommand(new CmdPartDesignVoronoiSketch);
 }

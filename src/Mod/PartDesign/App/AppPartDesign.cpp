@@ -55,7 +55,6 @@
 #include "FeaturePocket.h"
 #include "FeaturePolarPattern.h"
 #include "FeaturePrimitive.h"
-#include "FeatureVoronoi.h"
 #include "VoronoiSketch.h"
 #include "FeatureRevolution.h"
 #include "FeatureScaled.h"
@@ -168,9 +167,6 @@ PyMOD_INIT_FUNC(_PartDesign)
     PartDesign::Wedge                       ::init();
     PartDesign::AdditiveWedge               ::init();
     PartDesign::SubtractiveWedge            ::init();
-    PartDesign::FeatureVoronoi              ::init();
-    PartDesign::AdditiveVoronoi             ::init();
-    PartDesign::SubtractiveVoronoi          ::init();
     PartDesign::VoronoiSketch               ::init();
     PartDesign::FeatureBase                 ::init();
 
